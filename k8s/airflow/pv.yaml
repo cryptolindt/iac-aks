@@ -1,0 +1,37 @@
+# Static PersistentVolume backed by an Azure Blob container (Fuse premium).
+# The CSI driver mounts the container using the storage account credentials
+# synced from Key Vault by the ExternalSecret above.
+#
+# Variables substituted by envsubst before applying:
+#   MY_RESOURCE_GROUP_NAME
+#   AKS_AIRFLOW_LOGS_STORAGE_ACCOUNT_NAME
+#   AKS_AIRFLOW_LOGS_STORAGE_CONTAINER_NAME
+#   AKS_AIRFLOW_LOGS_STORAGE_SECRET_NAME
+#   AKS_AIRFLOW_NAMESPACE
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-airflow-logs
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: azureblob-fuse-premium
+  mountOptions:
+    - -o allow_other
+    - --file-cache-timeout-in-seconds=120
+  csi:
+    driver: blob.csi.azure.com
+    readOnly: false
+    volumeHandle: airflow-logs-1
+    volumeAttributes:
+      resourceGroup: ${MY_RESOURCE_GROUP_NAME}
+      storageAccount: ${AKS_AIRFLOW_LOGS_STORAGE_ACCOUNT_NAME}
+      containerName: ${AKS_AIRFLOW_LOGS_STORAGE_CONTAINER_NAME}
+    nodeStageSecretRef:
+      name: ${AKS_AIRFLOW_LOGS_STORAGE_SECRET_NAME}
+      namespace: ${AKS_AIRFLOW_NAMESPACE}

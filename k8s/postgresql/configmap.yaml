@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cnpg-controller-manager-config
+data:
+  CLUSTERS_ROLLOUT_DELAY: '120'
+  STANDBY_TCP_USER_TIMEOUT: '10'

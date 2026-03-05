@@ -1,0 +1,15 @@
+# PersistentVolumeClaim bound to the static log PV above.
+# Referenced in the Helm values file as logs.persistence.existingClaim.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-airflow-logs
+  namespace: airflow
+spec:
+  storageClassName: azureblob-fuse-premium
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: pv-airflow-logs

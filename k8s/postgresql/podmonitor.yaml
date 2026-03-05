@@ -1,0 +1,32 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ${PG_PRIMARY_CLUSTER_NAME}
+  namespace: ${PG_NAMESPACE}
+  labels:
+    cnpg.io/cluster: ${PG_PRIMARY_CLUSTER_NAME}
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: ${PG_PRIMARY_CLUSTER_NAME}
+  podMetricsEndpoints:
+    - port: metrics
+
+---
+
+apiVersion: azmonitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: cnpg-cluster-metrics-managed-prometheus
+  namespace: ${PG_NAMESPACE}
+  labels:
+    azure.workload.identity/use: "true"
+    cnpg.io/cluster: ${PG_PRIMARY_CLUSTER_NAME}
+spec:
+  selector:
+    matchLabels:
+      azure.workload.identity/use: "true"
+      cnpg.io/cluster: ${PG_PRIMARY_CLUSTER_NAME}
+  podMetricsEndpoints:
+    - port: metrics

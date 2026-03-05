@@ -1,0 +1,108 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ${PG_PRIMARY_CLUSTER_NAME}
+  annotations:
+    alpha.cnpg.io/failoverQuorum: "true"
+spec:
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-system-trixie
+  inheritedMetadata:
+    annotations:
+      service.beta.kubernetes.io/azure-dns-label-name: pg-primary
+    labels:
+      azure.workload.identity/use: "true"
+
+  instances: 3
+  smartShutdownTimeout: 30
+
+  probes:
+    startup:
+      type: streaming
+      maximumLag: 32Mi
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 120
+    readiness:
+      type: streaming
+      maximumLag: 0
+      periodSeconds: 10
+      failureThreshold: 6
+
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        cnpg.io/cluster: ${PG_PRIMARY_CLUSTER_NAME}
+
+  affinity:
+    nodeSelector:
+      workload: postgres
+
+  resources:
+    requests:
+      memory: '8Gi'
+      cpu: 2
+    limits:
+      memory: '8Gi'
+      cpu: 2
+
+  bootstrap:
+    initdb:
+      database: appdb
+      owner: app
+      secret:
+        name: db-user-pass
+      dataChecksums: true
+
+  storage:
+    storageClass: ${POSTGRES_STORAGE_CLASS}
+    size: 64Gi
+
+  postgresql:
+    synchronous:
+      method: any
+      number: 1
+    parameters:
+      wal_compression: lz4
+      max_wal_size: 6GB
+      max_slot_wal_keep_size: 10GB
+      checkpoint_timeout: 15min
+      checkpoint_completion_target: '0.9'
+      checkpoint_flush_after: 2MB
+      wal_writer_flush_after: 2MB
+      min_wal_size: 2GB
+      shared_buffers: 4GB
+      effective_cache_size: 12GB
+      work_mem: 62MB
+      maintenance_work_mem: 1GB
+      autovacuum_vacuum_cost_limit: "2400"
+      random_page_cost: "1.1"
+      effective_io_concurrency: "64"
+      maintenance_io_concurrency: "64"
+      log_checkpoints: 'on'
+      log_lock_waits: 'on'
+      log_min_duration_statement: '1000'
+      log_statement: 'ddl'
+      log_temp_files: '1024'
+      log_autovacuum_min_duration: '1s'
+      pg_stat_statements.max: '10000'
+      pg_stat_statements.track: 'all'
+      hot_standby_feedback: 'on'
+    pg_hba:
+      - host all all all scram-sha-256
+
+  serviceAccountTemplate:
+    metadata:
+      annotations:
+        azure.workload.identity/client-id: "${AKS_UAMI_WORKLOAD_CLIENTID}"
+      labels:
+        azure.workload.identity/use: "true"
+
+  backup:
+    barmanObjectStore:
+      destinationPath: "https://${PG_PRIMARY_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/backups"
+      azureCredentials:
+        inheritFromAzureAD: true
+    retentionPolicy: '7d'
